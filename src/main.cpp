@@ -3,9 +3,17 @@
 #include <vector>
 #include <format>
 
-const std::string EXIT = "exit 0";
-
+// BUILTINS
+const std::string EXIT = "exit";
+const std::string EXIT0 = "exit 0";
 const std::string ECHO = "echo";
+const std::string TYPE = "type";
+
+static bool is_type(std::string command) {
+	// if command == TYPE command, true; else false
+	if (command == TYPE) return true;
+	return false;
+}
 
 static bool is_echo(std::string command) {
 	// if command == ECHO command, true; else false
@@ -55,7 +63,7 @@ int main() {
 	std::cerr << std::unitbuf;
 
 	// store valid commands
-	std::vector<std::string> valid_commands{ECHO};
+	std::vector<std::string> valid_commands{EXIT, EXIT0, ECHO, TYPE};
 
 	bool exit = false;
 
@@ -79,8 +87,7 @@ int main() {
 
 		// check for valid command
 		if (!validate_command(command, valid_commands)) {
-			std::string invalid_command_response = std::format("{}: command not found", input);
-			std::cout << invalid_command_response << std::endl;
+			std::cout << std::format("{}: command not found", input) << std::endl;
 			continue;
 		}
 
@@ -94,6 +101,21 @@ int main() {
 			}
 			to_echo = to_echo.substr(0, to_echo.size() - 1); // remove final space
 			std::cout << to_echo << std::endl;
+		}
+
+		// check for type command
+		if (is_type(command)) {
+			if (validate_command(parsed_input[1], valid_commands)) {
+				// handle builtin command
+				for (int i = 0; i < valid_commands.size(); i++)
+				{
+					if (valid_commands[i] == parsed_input[1]) std::cout << std::format("{} is a shell builtin", parsed_input[1]) << std::endl;
+				}
+			}
+			else {
+				//handle unrecognized commands
+				std::cout << std::format("{}: not found", parsed_input[1]) << std::endl;
+			}
 		}
 	}
 }
