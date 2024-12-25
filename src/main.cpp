@@ -2,6 +2,11 @@
 #include <string>
 #include <vector>
 #include <format>
+#include <filesystem>
+#include <cstdlib>
+#include <tuple>
+
+namespace fs = std::filesystem;
 
 // BUILTINS
 const std::string EXIT = "exit";
@@ -27,6 +32,38 @@ static bool is_exit(std::string command) {
 	return false;
 }
 
+static std::vector<std::string> parse_paths(std::string paths) {
+	std::string token;
+	std::vector<std::string> tokens;
+	size_t pos = 0;
+
+#ifdef linux
+	char delim = ':';
+
+	while ((pos = paths.find(delim)) != std::string::npos) {
+		token = paths.substr(0, pos);
+		tokens.push_back(token);
+		paths.erase(0, pos + 1);
+	}
+	
+	tokens.push_back(paths);
+	return tokens;
+#endif
+
+#ifdef _WIN32
+	char delim = ';';
+
+	while ((pos = paths.find(delim)) != std::string::npos) {
+		token = paths.substr(0, pos);
+		tokens.push_back(token);
+		paths.erase(0, pos + 1);
+	}
+
+	tokens.push_back(paths);
+	return tokens;
+#endif
+}
+
 static std::vector<std::string> parse_input(std::string command) {
 	int cur = 0;
 	std::string sub;
@@ -49,6 +86,16 @@ static std::vector<std::string> parse_input(std::string command) {
 	return parsed_input;
 }
 
+static std::tuple<bool, std::string> validate_path(std::vector<std::string> paths, std::string filename) {
+	// check whether path + file_name is in file system
+	for (int i = 0; i < paths.size(); i++) {
+		std::string fullpath = std::format("{}/{}", paths[i], filename);
+		fs::path f{ fullpath };
+		if (fs::exists(f)) return std::tuple<bool, std::string>{true, fullpath};
+	}
+	return std::tuple<bool, std::string>{false, ""};
+}
+
 static bool validate_command(std::string command, std::vector<std::string> valid_commands) {
 	// if command valid, true; else false
 	for (int i = 0; i < valid_commands.size(); i++) {
@@ -65,8 +112,12 @@ int main() {
 	// store valid commands
 	std::vector<std::string> valid_commands{EXIT, EXIT0, ECHO, TYPE};
 
-	bool exit = false;
+	// store paths
+	std::vector<std::string> paths;
+	if (const char* env_p = std::getenv("PATH")) paths = parse_paths(env_p);
 
+	// repl
+	bool exit = false;
 	while (!exit) {
 		// Uncomment this block to pass the first stage
 		std::cout << "$ ";
@@ -111,6 +162,11 @@ int main() {
 				{
 					if (valid_commands[i] == parsed_input[1]) std::cout << std::format("{} is a shell builtin", parsed_input[1]) << std::endl;
 				}
+			}
+			else if (std::get<0>(validate_path(paths, parsed_input[1]))) {
+				// handle paths
+				// FIGURE OUT HOW TO DO THIS WITHOUT RUNNING "VALIDATE_PATH" TWICE!!
+				std::cout << std::format("{} is {}", parsed_input[1], std::get<1>(validate_path(paths, parsed_input[1]))) << std::endl;
 			}
 			else {
 				//handle unrecognized commands
