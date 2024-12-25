@@ -23,7 +23,7 @@ static bool is_echo(std::string command) {
 
 static bool is_exit(std::string command) {
 	// if command == EXIT command, true; else false
-	if (command == EXIT) return true;
+	if (command == EXIT0) return true;
 	return false;
 }
 
