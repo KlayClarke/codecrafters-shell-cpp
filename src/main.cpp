@@ -3,14 +3,19 @@
 #include <vector>
 #include <format>
 
+const std::string EXIT = "exit 0";
+
+static bool is_exit(std::string command) {
+	// if command == EXIT command, true; else false
+	if (command == EXIT) return true;
+	return false;
+}
+
 static bool validate_command(std::string command, std::vector<std::string> valid_commands) {
 	// if command valid, true; else false
 	for (int i = 0; i < valid_commands.size(); i++) {
-		if (valid_commands[i] == command) {
-			return true;
-		}
+		if (valid_commands[i] == command) return true;
 	}
-
 	return false;
 }
 
@@ -31,6 +36,13 @@ int main() {
 		std::string input;
 		std::getline(std::cin, input);
 
+		// check for exit
+		if (is_exit(input)) {
+			exit = true;
+			continue;
+		}
+
+		// check for valid command
 		if (!validate_command(input, valid_commands)) {
 			std::string invalid_command_response = std::format("{}: command not found", input);
 			std::cout << invalid_command_response << std::endl;
