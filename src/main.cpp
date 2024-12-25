@@ -19,16 +19,21 @@ int main() {
 	std::cout << std::unitbuf;
 	std::cerr << std::unitbuf;
 
-	// Uncomment this block to pass the first stage
-	std::cout << "$ ";
-
-	std::string input;
-	std::getline(std::cin, input);
-
-	// validate command
+	// store valid commands
 	std::vector<std::string> valid_commands{};
-	if (!validate_command(input, valid_commands)) {
-		std::string invalid_command_response = std::format("{}: command not found", input);
-		std::cout << invalid_command_response << std::endl;
+
+	bool exit = false;
+
+	while (!exit) {
+		// Uncomment this block to pass the first stage
+		std::cout << "$ ";
+
+		std::string input;
+		std::getline(std::cin, input);
+
+		if (!validate_command(input, valid_commands)) {
+			std::string invalid_command_response = std::format("{}: command not found", input);
+			std::cout << invalid_command_response << std::endl;
+		}
 	}
 }
