@@ -16,6 +16,13 @@ const std::string EXIT0 = "exit 0";
 const std::string ECHO = "echo";
 const std::string TYPE = "type";
 const std::string PWD = "pwd";
+const std::string CD = "cd";
+
+static bool is_cd(std::string command) {
+	// if command == CD command, true; else false
+	if (command == CD) return true;
+	return false;
+}
 
 static bool is_pwd(std::string command) {
 	// if command == PWD command, true; else false
@@ -119,7 +126,7 @@ int main() {
 	std::cerr << std::unitbuf;
 
 	// store valid commands
-	std::vector<std::string> valid_commands{EXIT, EXIT0, ECHO, TYPE, PWD};
+	std::vector<std::string> valid_commands{EXIT, EXIT0, ECHO, TYPE, PWD, CD};
 
 	// store paths
 	std::vector<std::string> paths;
@@ -172,6 +179,7 @@ int main() {
 			}
 			to_echo = to_echo.substr(0, to_echo.size() - 1); // remove final space
 			std::cout << to_echo << std::endl;
+			continue;
 		}
 
 		// check for type command
@@ -192,6 +200,7 @@ int main() {
 				//handle unrecognized commands
 				std::cout << std::format("{}: not found", parsed_input[1]) << std::endl;
 			}
+			continue;
 		}
 
 		// check for pwd command
@@ -200,5 +209,18 @@ int main() {
 			std::cout << cwd.string() << std::endl;
 			continue;
 		}
+
+		// check for cd command
+		if (is_cd(command)) {
+			fs::path p = fs::path(parsed_input[1]);
+			if (fs::exists(p)) fs::current_path(p);
+			else std::cout << std::format("cd: {}: No such file or directory", p.string()) << std::endl;
+			continue;
+		}
 	}
 }
+
+// current goal: implement cd builtin for 
+	//Absolute paths, like /usr/local/bin.
+	//Relative paths, like ./, ../, ./dir.
+	//The ~ character, which stands for the user's home directory
