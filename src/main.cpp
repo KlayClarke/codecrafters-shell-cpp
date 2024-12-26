@@ -219,8 +219,3 @@ int main() {
 		}
 	}
 }
-
-// current goal: implement cd builtin for 
-	//Absolute paths, like /usr/local/bin.
-	//Relative paths, like ./, ../, ./dir.
-	//The ~ character, which stands for the user's home directory
