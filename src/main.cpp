@@ -213,6 +213,21 @@ int main() {
 		// check for cd command
 		if (is_cd(command)) {
 			fs::path p = fs::path(parsed_input[1]);
+			if (parsed_input[1][0] == '~') {
+				if (const char* env_h = std::getenv("HOME")) {
+					std::string path_remainder;
+					if (parsed_input[1].size() > 1) {
+						// check for ~/dir command
+						path_remainder = parsed_input[1].substr(1, parsed_input[1].size());
+						p = fs::path(std::format("{}/{}", env_h, path_remainder.c_str()));
+					}
+					else {
+						// check for ~ command
+						p = fs::path(std::format("{}", env_h));
+					}
+				}
+			}
+
 			if (fs::exists(p)) fs::current_path(p);
 			else std::cout << std::format("cd: {}: No such file or directory", p.string()) << std::endl;
 			continue;
