@@ -15,6 +15,13 @@ const std::string EXIT = "exit";
 const std::string EXIT0 = "exit 0";
 const std::string ECHO = "echo";
 const std::string TYPE = "type";
+const std::string PWD = "pwd";
+
+static bool is_pwd(std::string command) {
+	// if command == PWD command, true; else false
+	if (command == PWD) return true;
+	return false;
+}
 
 static bool is_type(std::string command) {
 	// if command == TYPE command, true; else false
@@ -112,7 +119,7 @@ int main() {
 	std::cerr << std::unitbuf;
 
 	// store valid commands
-	std::vector<std::string> valid_commands{EXIT, EXIT0, ECHO, TYPE};
+	std::vector<std::string> valid_commands{EXIT, EXIT0, ECHO, TYPE, PWD};
 
 	// store paths
 	std::vector<std::string> paths;
@@ -185,6 +192,11 @@ int main() {
 				//handle unrecognized commands
 				std::cout << std::format("{}: not found", parsed_input[1]) << std::endl;
 			}
+		}
+
+		// check for pwd command
+		if (is_pwd(command)) {
+			system("pwd");
 		}
 	}
 }
