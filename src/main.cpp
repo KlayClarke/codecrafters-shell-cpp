@@ -196,7 +196,9 @@ int main() {
 
 		// check for pwd command
 		if (is_pwd(command)) {
-			system("pwd");
+			fs::path cwd = fs::current_path();
+			std::cout << cwd.string() << std::endl;
+			continue;
 		}
 	}
 }
