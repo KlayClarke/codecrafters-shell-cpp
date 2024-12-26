@@ -6,6 +6,8 @@
 #include <cstdlib>
 #include <tuple>
 
+#define DBM(str) do { std::cout << str << std::endl; } while (false) // Debug messages simplified
+
 namespace fs = std::filesystem;
 
 // BUILTINS
@@ -138,6 +140,17 @@ int main() {
 
 		// check for valid command
 		if (!validate_command(command, valid_commands)) {
+			// check executable
+			std::string arg;
+			if (parsed_input.size() > 1) arg = parsed_input[1];
+			std::tuple<bool, std::string> validated_path = validate_path(paths, command);
+			if (std::get<0>(validated_path)) {
+				std::string fullpath = std::format("{} {}", std::get<1>(validated_path).c_str(), parsed_input[1]);
+				// KEEP IN MIND: below code won't work if there is a valid path that isn't executable
+				if (system(fullpath.c_str()) == 0) {
+					continue;
+				}
+			}
 			std::cout << std::format("{}: command not found", input) << std::endl;
 			continue;
 		}
