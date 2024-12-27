@@ -17,6 +17,13 @@ const std::string ECHO = "echo";
 const std::string TYPE = "type";
 const std::string PWD = "pwd";
 const std::string CD = "cd";
+const std::string CAT = "cat";
+
+static bool is_cat(std::string command) {
+	// if command == CAT command, true; else false
+	if (command == CAT) return true;
+	return false;
+}
 
 static bool is_cd(std::string command) {
 	// if command == CD command, true; else false
@@ -81,24 +88,55 @@ static std::vector<std::string> parse_paths(std::string paths) {
 }
 
 static std::vector<std::string> parse_input(std::string command) {
-	int cur = 0;
+	size_t a = 0;
 	std::string sub;
 	std::string command_cp = command;
 	std::vector<std::string> parsed_input;
+	
+	// NEED TO HANDLE echo hello     script & make this return hello script (remove extra spaces?)
 
-	for (int i = 0; i < command.size(); i++) {
+	// get builtin command first
+	for (size_t i = 0; i < command.size(); i++) {
 		if (command[i] == ' ') {
-			if ((i - cur) < 0) break;
-			int c_range = i - cur;
-			sub = command.substr(cur, c_range);
+			if ((i - a) < 0) break;
+			size_t c_range = i - a;
+			sub = command.substr(a, c_range);
 			parsed_input.push_back(sub);
-			cur = i + 1;
+			a = i + 1;
+			break;
 		}
 	}
 
-	sub = command.substr(cur, command.size() - cur);
-	parsed_input.push_back(sub);
+	// two checks
+	// NEED TO GET QUOTATION SUBSTRINGS INDIVIDUALLY INSTEAD OF ASSUMING THERE IS ONLY ONE
+	if (command[a] == '\'' && command[command.size() - 1] == '\'') {
+		// enclosed in quotes
+		if (((a + 1) < command.size() - 1) && ((command.size() - a - 1) > 0)) {
+			sub = command.substr(a + 1, command.size() - a - 2);
+			// echo 'hello world'
+			// command = echo
+			// a + 1 gets us to first letter of enclosed arg (h)
+			// command.size() - a - 2 ensures that we don't save closing quotation in parsed_input
+			parsed_input.push_back(sub);
+		}
+	}
+	else {
+		// not enclosed in quotes
+		for (size_t i = a; i < command.size(); i++) {
+			if (command[i] == ' ') {
+				if ((i - a) < 0) break;
+				size_t c_range = i - a;
+				sub = command.substr(a, c_range);
+				// goal to skip whitespace here and create space in method where I handle echo functionality
+				a = i + 1;
+				if (sub == "") continue;
+				parsed_input.push_back(sub);
+			}
 
+		}
+		sub = command.substr(a, command.size() - a);
+		parsed_input.push_back(sub);
+	}
 	return parsed_input;
 }
 
@@ -126,7 +164,7 @@ int main() {
 	std::cerr << std::unitbuf;
 
 	// store valid commands
-	std::vector<std::string> valid_commands{EXIT, EXIT0, ECHO, TYPE, PWD, CD};
+	std::vector<std::string> valid_commands{EXIT, EXIT0, ECHO, TYPE, PWD, CD, CAT};
 
 	// store paths
 	std::vector<std::string> paths;
@@ -232,5 +270,13 @@ int main() {
 			else std::cout << std::format("cd: {}: No such file or directory", p.string()) << std::endl;
 			continue;
 		}
+
+		// check for cat command
+		if (is_cat(command)) {
+			for (auto i : parsed_input) DBM(i);
+			DBM("is cat command at line 275");
+		}
 	}
 }
+
+// anything enclosed in single quotes should be treated as one word for echo command purpose
