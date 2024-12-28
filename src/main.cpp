@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <cstdlib>
 #include <tuple>
+#include <algorithm>
 
 #define DBM(str) do { std::cout << str << std::endl; } while (false) // Debug messages simplified
 
@@ -17,13 +18,6 @@ const std::string ECHO = "echo";
 const std::string TYPE = "type";
 const std::string PWD = "pwd";
 const std::string CD = "cd";
-const std::string CAT = "cat";
-
-static bool is_cat(std::string command) {
-	// if command == CAT command, true; else false
-	if (command == CAT) return true;
-	return false;
-}
 
 static bool is_cd(std::string command) {
 	// if command == CD command, true; else false
@@ -53,6 +47,16 @@ static bool is_exit(std::string command) {
 	// if command == EXIT command, true; else false
 	if (command == EXIT0) return true;
 	return false;
+}
+
+static std::vector<size_t> find_single_quotes(std::string& command) {
+	std::vector<size_t> out;
+	for (size_t i = 0; i < command.size(); i++)
+	{
+		if (command[i] == '\'') out.push_back(i);
+	}
+
+	return out;
 }
 
 static std::vector<std::string> parse_paths(std::string paths) {
@@ -87,13 +91,17 @@ static std::vector<std::string> parse_paths(std::string paths) {
 #endif
 }
 
-static std::vector<std::string> parse_input(std::string command) {
+static void extract_string_between(std::vector<std::string>& parsed_input, std::string& command, size_t a, size_t b) {
+	if (b - a > 0) {
+		std::string sub = command.substr(a, b - a);
+		parsed_input.push_back(sub);
+	}
+}
+
+static std::vector<std::string> parse_input(std::string& command) {
 	size_t a = 0;
 	std::string sub;
-	std::string command_cp = command;
 	std::vector<std::string> parsed_input;
-	
-	// NEED TO HANDLE echo hello     script & make this return hello script (remove extra spaces?)
 
 	// get builtin command first
 	for (size_t i = 0; i < command.size(); i++) {
@@ -107,17 +115,15 @@ static std::vector<std::string> parse_input(std::string command) {
 		}
 	}
 
-	// two checks
-	// NEED TO GET QUOTATION SUBSTRINGS INDIVIDUALLY INSTEAD OF ASSUMING THERE IS ONLY ONE
-	if (command[a] == '\'' && command[command.size() - 1] == '\'') {
-		// enclosed in quotes
-		if (((a + 1) < command.size() - 1) && ((command.size() - a - 1) > 0)) {
-			sub = command.substr(a + 1, command.size() - a - 2);
-			// echo 'hello world'
-			// command = echo
-			// a + 1 gets us to first letter of enclosed arg (h)
-			// command.size() - a - 2 ensures that we don't save closing quotation in parsed_input
-			parsed_input.push_back(sub);
+	std::vector<size_t> single_quote_indices = find_single_quotes(command);
+	if (single_quote_indices.size() > 0 && single_quote_indices.size() % 2 == 0) {
+		size_t x = 0;
+		size_t y = 1;
+
+		while (x < single_quote_indices.size()) {
+			extract_string_between(parsed_input, command, single_quote_indices[x] + 1, single_quote_indices[y]);
+			x += 2;
+			y += 2;
 		}
 	}
 	else {
@@ -132,7 +138,6 @@ static std::vector<std::string> parse_input(std::string command) {
 				if (sub == "") continue;
 				parsed_input.push_back(sub);
 			}
-
 		}
 		sub = command.substr(a, command.size() - a);
 		parsed_input.push_back(sub);
@@ -164,7 +169,7 @@ int main() {
 	std::cerr << std::unitbuf;
 
 	// store valid commands
-	std::vector<std::string> valid_commands{EXIT, EXIT0, ECHO, TYPE, PWD, CD, CAT};
+	std::vector<std::string> valid_commands{EXIT, EXIT0, ECHO, TYPE, PWD, CD};
 
 	// store paths
 	std::vector<std::string> paths;
@@ -193,12 +198,16 @@ int main() {
 		// check for valid command
 		if (!validate_command(command, valid_commands)) {
 			// check executable
-			std::string arg;
-			if (parsed_input.size() > 1) arg = parsed_input[1];
+			std::vector<std::string> args = parsed_input;
 			std::tuple<bool, std::string> validated_path = validate_path(paths, command);
 			if (std::get<0>(validated_path)) {
-				std::string fullpath = std::format("{} {}", std::get<1>(validated_path).c_str(), parsed_input[1]);
-				// KEEP IN MIND: below code won't work if there is a valid path that isn't executable
+				// allow for multiple args
+				std::string fullpath = std::get<1>(validated_path).c_str();
+				for (size_t i = 1; i < args.size(); i++) {
+					fullpath += std::format(" '{}'", args[i]);
+				}
+
+				// AND KEEP IN MIND: below code won't work if there is a valid path that isn't executable
 				if (system(fullpath.c_str()) == 0) {
 					continue;
 				}
@@ -270,13 +279,5 @@ int main() {
 			else std::cout << std::format("cd: {}: No such file or directory", p.string()) << std::endl;
 			continue;
 		}
-
-		// check for cat command
-		if (is_cat(command)) {
-			for (auto i : parsed_input) DBM(i);
-			DBM("is cat command at line 275");
-		}
 	}
 }
-
-// anything enclosed in single quotes should be treated as one word for echo command purpose
