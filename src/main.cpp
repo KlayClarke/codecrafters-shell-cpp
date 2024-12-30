@@ -107,79 +107,6 @@ static void extract_string_between(std::vector<std::string>& parsed_input, std::
 }
 
 static std::vector<std::string> parse_input(std::string& command) {
-	size_t a = 0;
-	std::string sub;
-	std::vector<std::string> parsed_input;
-
-	// get builtin command first
-	for (size_t i = 0; i < command.size(); i++) {
-		if (command[i] == ' ') {
-			if ((i - a) < 0) break;
-			size_t c_range = i - a;
-			sub = command.substr(a, c_range);
-			parsed_input.push_back(sub);
-			a = i + 1;
-			break;
-		}
-	}
-
-	std::vector<size_t> single_quote_indices = find_single_quotes(command);
-	std::vector<size_t> double_quote_indices = find_double_quotes(command);
-
-	if (single_quote_indices.size() > 0 && single_quote_indices.size() % 2 == 0) {
-		// enclosed in single quotes
-		size_t x = 0;
-		size_t y = 1;
-
-		while (x < single_quote_indices.size()) {
-			extract_string_between(parsed_input, command, single_quote_indices[x] + 1, single_quote_indices[y]);
-			x += 2;
-			y += 2;
-		}
-	}
-	else if (double_quote_indices.size() > 0 && double_quote_indices.size() % 2 == 0) {
-		// enclosed in double quotes
-		// IMPORTANT: If backslash (\) is followed by $, `, or \ it should be removed;
-		size_t x = 0;
-		size_t y = 1;
-
-		while (x < double_quote_indices.size()) {
-			extract_string_between(parsed_input, command, double_quote_indices[x] + 1, double_quote_indices[y]);
-			x += 2;
-			y += 2;
-		}
-	}
-	else {
-		// not enclosed in quotes
-		for (size_t i = a; i < command.size(); i++) {
-			if (command[i] == ' ') {
-				if ((i - a) < 0) break;
-				size_t c_range = i - a;
-				sub = command.substr(a, c_range);
-				// goal to skip whitespace here and create space in method where I handle echo functionality
-				a = i + 1;
-				if (sub == "") continue;
-				parsed_input.push_back(sub);
-			}
-		}
-		sub = command.substr(a, command.size() - a);
-		parsed_input.push_back(sub);
-	}
-	for (size_t i = 0; i < parsed_input.size(); i++)
-	{
-		DBM(parsed_input[i]);
-	}
-	return parsed_input;
-}
-
-// revised_parse_input():
-// 1. get command [DONE]
-// 2. traverse input [DOING]
-	// a. if single quote or double quote seen, look for closing quote
-	// b. if closing quote found, extract contents
-	// c. else, find spaces and extract contents like that
-
-static std::vector<std::string> revised_parse_input(std::string& command) {
 	int a = 0;
 	std::string sub;
 	std::vector<std::string> parsed_input;
@@ -195,25 +122,10 @@ static std::vector<std::string> revised_parse_input(std::string& command) {
 			break;
 		}
 	}
-	//DBM(command.size());
+
 	int b = a;
 	while (a < command.size()) {
-		if (command[a] == '\'') {
-			size_t opening_quote_index = a;
-			size_t closing_quote_index = a + 1;
-			// look for closing single quote
-			while (closing_quote_index < command.size()) {
-				if (command[closing_quote_index] == '\'') {
-					// then extract middle contents
-					extract_string_between(parsed_input, command, opening_quote_index + 1, closing_quote_index);
-					a = closing_quote_index + 1;
-					b = a;
-					break;
-				}
-				closing_quote_index++;
-			}
-		}
-		else if (command[a] == '\"') {
+		if (command[a] == '\"') {
 			size_t opening_quote_index = a;
 			size_t closing_quote_index = a + 1;
 			// look for closing double quote
@@ -228,23 +140,38 @@ static std::vector<std::string> revised_parse_input(std::string& command) {
 				closing_quote_index++;
 			}
 		}
+		else if (command[a] == '\'') {
+			size_t opening_quote_index = a;
+			size_t closing_quote_index = a + 1;
+			// look for closing single quote
+			while (closing_quote_index < command.size()) {
+				if (command[closing_quote_index] == '\'') {
+					// then extract middle contents
+					extract_string_between(parsed_input, command, opening_quote_index + 1, closing_quote_index);
+					a = closing_quote_index + 1;
+					b = a;
+					break;
+				}
+				closing_quote_index++;
+			}
+		}
 		else if (command[a] == ' ') {
 			// find spaces and extract args like that
-			if (a - b >= 0) {
+			if (a - b > 0) {
 				int c_range = a - b;
 				sub = command.substr(b, c_range);
 			
 				// goal to skip whitespace here and create space in method where I handle echo functionality
 				b = a + 1;
 
-				if (sub == "") continue;
+				if (sub == "" || sub == " ") continue;
 				parsed_input.push_back(sub);
 			}
 		}
 		a++;
 	}
 	sub = command.substr(b, command.size() - b);
-	parsed_input.push_back(sub);
+	if (sub != "") parsed_input.push_back(sub);
 	return parsed_input;
 }
 
@@ -288,7 +215,7 @@ int main() {
 		std::getline(std::cin, input);
 
 		// parse / separate command and args
-		std::vector<std::string> parsed_input = revised_parse_input(input);
+		std::vector<std::string> parsed_input = parse_input(input);
 
 		// check for exit
 		if (is_exit(input)) {
@@ -301,13 +228,12 @@ int main() {
 		// check for valid command
 		if (!validate_command(command, valid_commands)) {
 			// check executable
-			std::vector<std::string> args = parsed_input;
 			std::tuple<bool, std::string> validated_path = validate_path(paths, command);
 			if (std::get<0>(validated_path)) {
 				// allow for multiple args
 				std::string fullpath = std::get<1>(validated_path).c_str();
-				for (size_t i = 1; i < args.size(); i++) {
-					fullpath += std::format(" '{}'", args[i]);
+				for (size_t i = 1; i < parsed_input.size(); i++) {
+					fullpath += std::format(" \"{}\"", parsed_input[i]);
 				}
 
 				// AND KEEP IN MIND: below code won't work if there is a valid path that isn't executable
