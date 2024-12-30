@@ -168,6 +168,10 @@ static std::vector<std::string> parse_input(std::string& command) {
 				parsed_input.push_back(sub);
 			}
 		}
+		else if (command[a] == '\\') {
+			// if backslash outside of quotes, remove it
+			command.erase(command.begin() + a);
+		}
 		a++;
 	}
 	sub = command.substr(b, command.size() - b);
@@ -310,3 +314,6 @@ int main() {
 		}
 	}
 }
+
+
+// handle backslashes
