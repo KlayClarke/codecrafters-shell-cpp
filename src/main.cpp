@@ -18,6 +18,9 @@ const std::string TYPE = "type";
 const std::string PWD = "pwd";
 const std::string CD = "cd";
 
+// SPECIAL CHARS
+const std::vector<char> SPEC_CHARS {'\\', '$', '\"'};
+
 static bool is_cd(std::string command) {
 	// if command == CD command, true; else false
 	if (command == CD) return true;
@@ -106,76 +109,82 @@ static void extract_string_between(std::vector<std::string>& parsed_input, std::
 	}
 }
 
+static void escape_special_chars(std::string& command, size_t starting_index) {
+	size_t special_char_index = starting_index + 1;
+	for (auto c : SPEC_CHARS) {
+		if (c == command[special_char_index + 1]) {
+			command.erase(command.begin() + special_char_index);
+		}
+	}
+}
+
+static size_t find_closing_quote_index(std::string& command, size_t starting_index, bool single_quote=false) {
+	size_t closing_quote_index = starting_index + 1;
+	if (single_quote) {
+		while (closing_quote_index < command.size()) {
+			if (command[closing_quote_index] == '\'') {
+				// then extract middle contents
+				return closing_quote_index;
+			}
+			closing_quote_index++;
+		}
+	}
+	else {
+		while (closing_quote_index < command.size()) {
+			if (command[closing_quote_index] == '\"') {
+				// then extract middle contents
+				return closing_quote_index;
+			}
+			else if (command[closing_quote_index] == '\\') {
+				escape_special_chars(command, closing_quote_index);
+			}
+			closing_quote_index++;
+		}
+	}
+
+	return -1;
+}
+
 static std::vector<std::string> parse_input(std::string& command) {
 	int a = 0;
-	std::string sub;
 	std::vector<std::string> parsed_input;
 
-	// get builtin command first
+	// traverses command and separates args using spaces, double quotes, single quotes
 	for (size_t i = 0; i < command.size(); i++) {
+		// if space
 		if (command[i] == ' ') {
-			if ((i - a) < 0) break;
-			size_t c_range = i - a;
-			sub = command.substr(a, c_range);
-			parsed_input.push_back(sub);
+			extract_string_between(parsed_input, command, a, i); // doesn't include space (command[i])
+			size_t latest_entry_parsed_input = parsed_input.size() - 1;
+			if (parsed_input[latest_entry_parsed_input] != " ") parsed_input.push_back(" ");
 			a = i + 1;
-			break;
 		}
-	}
-
-	int b = a;
-	while (a < command.size()) {
-		if (command[a] == '\"') {
-			size_t opening_quote_index = a;
-			size_t closing_quote_index = a + 1;
-			// look for closing double quote
-			while (closing_quote_index < command.size()) {
-				if (command[closing_quote_index] == '\"') {
-					// then extract middle contents
-					extract_string_between(parsed_input, command, opening_quote_index + 1, closing_quote_index);
-					a = closing_quote_index + 1;
-					b = a;
-					break;
-				}
-				closing_quote_index++;
+		// if double quotes
+		else if (command[i] == '\"') {
+			size_t closing_quote_index = find_closing_quote_index(command, i);
+			if (closing_quote_index != -1) {
+				extract_string_between(parsed_input, command, i + 1, closing_quote_index);
+				a = i + 1;
+				i = closing_quote_index + 1;
 			}
 		}
+		// if single quotes
 		else if (command[a] == '\'') {
-			size_t opening_quote_index = a;
-			size_t closing_quote_index = a + 1;
-			// look for closing single quote
-			while (closing_quote_index < command.size()) {
-				if (command[closing_quote_index] == '\'') {
-					// then extract middle contents
-					extract_string_between(parsed_input, command, opening_quote_index + 1, closing_quote_index);
-					a = closing_quote_index + 1;
-					b = a;
-					break;
-				}
-				closing_quote_index++;
+			size_t closing_quote_index = find_closing_quote_index(command, i, true);
+			if (closing_quote_index != -1) {
+				extract_string_between(parsed_input, command, i + 1, closing_quote_index);
+				a = i + 1;
+				i = closing_quote_index + 1;
 			}
 		}
-		else if (command[a] == ' ') {
-			// find spaces and extract args like that
-			if (a - b > 0) {
-				int c_range = a - b;
-				sub = command.substr(b, c_range);
-			
-				// goal to skip whitespace here and create space in method where I handle echo functionality
-				b = a + 1;
-
-				if (sub == "" || sub == " ") continue;
-				parsed_input.push_back(sub);
-			}
-		}
+		// if backslash outside of quotes
 		else if (command[a] == '\\') {
-			// if backslash outside of quotes, remove it
 			command.erase(command.begin() + a);
 		}
-		a++;
+		// if end of command
+		else if (i == command.size() - 1) {
+			extract_string_between(parsed_input, command, a, i + 1); // includes command[i]
+		}
 	}
-	sub = command.substr(b, command.size() - b);
-	if (sub != "") parsed_input.push_back(sub);
 	return parsed_input;
 }
 
@@ -236,8 +245,8 @@ int main() {
 			if (std::get<0>(validated_path)) {
 				// allow for multiple args
 				std::string fullpath = std::get<1>(validated_path).c_str();
-				for (size_t i = 1; i < parsed_input.size(); i++) {
-					fullpath += std::format(" \"{}\"", parsed_input[i]);
+				for (size_t i = 2; i < parsed_input.size(); i++) {
+					if (i % 2 == 0) fullpath += std::format(" \"{}\"", parsed_input[i]);
 				}
 
 				// AND KEEP IN MIND: below code won't work if there is a valid path that isn't executable
@@ -253,32 +262,31 @@ int main() {
 		if (is_echo(command)) {
 			// handle echo
 			std::string to_echo = "";
-			for (auto& entry : parsed_input) {
-				if (entry == command) continue;
-				to_echo += std::format("{} ", entry); // add space after each word
+			for (size_t i = 2; i < parsed_input.size(); i++) { // skip echo command string and the space after
+				to_echo += std::format("{}", parsed_input[i]);
 			}
-			to_echo = to_echo.substr(0, to_echo.size() - 1); // remove final space
 			std::cout << to_echo << std::endl;
 			continue;
 		}
 
 		// check for type command
 		if (is_type(command)) {
-			if (validate_command(parsed_input[1], valid_commands)) {
+			std::string type_arg = parsed_input[2];
+			if (validate_command(type_arg, valid_commands)) {
 				// handle builtin command
 				for (int i = 0; i < valid_commands.size(); i++)
 				{
-					if (valid_commands[i] == parsed_input[1]) std::cout << std::format("{} is a shell builtin", parsed_input[1]) << std::endl;
+					if (valid_commands[i] == type_arg) std::cout << std::format("{} is a shell builtin", type_arg) << std::endl;
 				}
 			}
-			else if (std::get<0>(validate_path(paths, parsed_input[1]))) {
+			else if (std::get<0>(validate_path(paths, type_arg))) {
 				// handle paths
 				// FIGURE OUT HOW TO DO THIS WITHOUT RUNNING "VALIDATE_PATH" TWICE!!
-				std::cout << std::format("{} is {}", parsed_input[1], std::get<1>(validate_path(paths, parsed_input[1]))) << std::endl;
+				std::cout << std::format("{} is {}", type_arg, std::get<1>(validate_path(paths, type_arg))) << std::endl;
 			}
 			else {
 				//handle unrecognized commands
-				std::cout << std::format("{}: not found", parsed_input[1]) << std::endl;
+				std::cout << std::format("{}: not found", type_arg) << std::endl;
 			}
 			continue;
 		}
@@ -292,13 +300,13 @@ int main() {
 
 		// check for cd command
 		if (is_cd(command)) {
-			fs::path p = fs::path(parsed_input[1]);
-			if (parsed_input[1][0] == '~') {
+			fs::path p = fs::path(parsed_input[2]);
+			if (parsed_input[2][0] == '~') {
 				if (const char* env_h = std::getenv("HOME")) {
 					std::string path_remainder;
-					if (parsed_input[1].size() > 1) {
+					if (parsed_input[2].size() > 1) {
 						// check for ~/dir command
-						path_remainder = parsed_input[1].substr(1, parsed_input[1].size());
+						path_remainder = parsed_input[2].substr(1, parsed_input[2].size());
 						p = fs::path(std::format("{}/{}", env_h, path_remainder.c_str()));
 					}
 					else {
@@ -314,3 +322,8 @@ int main() {
 		}
 	}
 }
+
+// get this (echo "klay"clarke) to print out (klayclarke) instead of (klay clarke)
+// need to save spaces
+
+// for revising parse_input, need to figure out how to parse each arg and save spaces
