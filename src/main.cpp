@@ -168,7 +168,7 @@ static std::vector<std::string> parse_input(std::string& command) {
 			}
 		}
 		// if single quotes
-		else if (command[a] == '\'') {
+		else if (command[i] == '\'') {
 			size_t closing_quote_index = find_closing_quote_index(command, i, true);
 			if (closing_quote_index != -1) {
 				extract_string_between(parsed_input, command, i + 1, closing_quote_index);
@@ -178,8 +178,10 @@ static std::vector<std::string> parse_input(std::string& command) {
 			}
 		}
 		// if backslash outside of quotes
-		else if (command[a] == '\\') {
-			command.erase(command.begin() + a);
+		else if (command[i] == '\\') {
+			// remove backslash
+			command.erase(command.begin() + i);
+			i = i - 1;
 		}
 		// if end of command
 		else if (i == command.size() - 1) {
