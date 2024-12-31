@@ -146,7 +146,7 @@ static size_t find_closing_quote_index(std::string& command, size_t starting_ind
 }
 
 static std::vector<std::string> parse_input(std::string& command) {
-	int a = 0;
+	size_t a = 0;
 	std::vector<std::string> parsed_input;
 
 	// traverses command and separates args using spaces, double quotes, single quotes
@@ -154,8 +154,7 @@ static std::vector<std::string> parse_input(std::string& command) {
 		// if space
 		if (command[i] == ' ') {
 			extract_string_between(parsed_input, command, a, i); // doesn't include space (command[i])
-			size_t latest_entry_parsed_input = parsed_input.size() - 1;
-			if (parsed_input[latest_entry_parsed_input] != " ") parsed_input.push_back(" ");
+			if (parsed_input[parsed_input.size() - 1] != " ") parsed_input.push_back(" ");
 			a = i + 1;
 		}
 		// if double quotes
@@ -163,8 +162,9 @@ static std::vector<std::string> parse_input(std::string& command) {
 			size_t closing_quote_index = find_closing_quote_index(command, i);
 			if (closing_quote_index != -1) {
 				extract_string_between(parsed_input, command, i + 1, closing_quote_index);
+				if (parsed_input[parsed_input.size() - 1] != " ") parsed_input.push_back(" ");
+				i = closing_quote_index;
 				a = i + 1;
-				i = closing_quote_index + 1;
 			}
 		}
 		// if single quotes
@@ -172,8 +172,9 @@ static std::vector<std::string> parse_input(std::string& command) {
 			size_t closing_quote_index = find_closing_quote_index(command, i, true);
 			if (closing_quote_index != -1) {
 				extract_string_between(parsed_input, command, i + 1, closing_quote_index);
+				if (parsed_input[parsed_input.size() - 1] != " ") parsed_input.push_back(" ");
+				i = closing_quote_index;
 				a = i + 1;
-				i = closing_quote_index + 1;
 			}
 		}
 		// if backslash outside of quotes
